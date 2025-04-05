@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sauce Finder</title>
+    <style>
+        /* --- Basic Styling --- */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 15px;
+            background-color: #f0f2f5; /* Light gray background */
+            color: #1c1e21; /* Dark text */
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 750px; /* Slightly wider */
+            margin: 20px auto;
+            background-color: #ffffff; /* White card */
+            padding: 25px 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            flex-grow: 1;
+        }
+
+        h1 {
+            color: #e53935; /* A strong anime red */
+            margin-bottom: 5px;
+        }
+
+        h1 .beta {
+            font-size: 0.5em;
+            color: #606770; /* Subdued gray */
+            vertical-align: middle;
+            font-weight: normal;
+        }
+
+        p {
+            color: #606770;
+            margin-bottom: 20px;
+        }
+
+        /* --- Input Area --- */
+        .input-area {
+            margin: 25px 0;
+            padding: 30px 20px;
+            border: 2px dashed #ccd0d5; /* Lighter dashed border */
+            border-radius: 8px;
+            background-color: #f5f6f7; /* Very light background for drop zone */
+            position: relative;
+            transition: background-color 0.2s ease, border-color 0.2s ease;
+        }
+
+        .input-area.dragover {
+            background-color: #e0e6ef; /* Highlight on drag over */
+            border-color: #5d9cec;
+        }
+
+        .file-label {
+            display: inline-block;
+            padding: 12px 25px;
+            background-color: #1877f2; /* Facebook blue - recognizable */
+            color: white;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            font-weight: bold;
+        }
+
+        .file-label:hover {
+            background-color: #166fe5;
+        }
+
+        input[type="file"] {
+            display: none; /* Hide the default input */
+        }
+
+        #preview {
+            display: block; /* Changed from inline */
+            max-width: 90%; /* Limit width within container */
+            max-height: 250px; /* Increased max height */
+            margin: 20px auto 0; /* Centered block */
+            border: 1px solid #dddfe2;
+            border-radius: 4px;
+            object-fit: contain; /* Show whole image, letterboxed if needed */
+        }
+
+        /* --- Loading Spinner --- */
+        #loading {
+            margin: 30px 0;
+        }
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border-left-color: #1877f2; /* Spinner color */
+            animation: spin 1s ease infinite;
+            margin: 0 auto 10px auto; /* Centered */
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* --- Messages & Results --- */
+        .error-message {
+            color: #fa383e; /* Error red */
+            background-color: #ffebe6; /* Light red background */
+            border: 1px solid #fa383e;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+
+        #results-area {
+            margin-top: 30px;
+            text-align: left; /* Align results text left */
+        }
+
+        #results-area h2 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+
+        .result-item {
+            display: flex;
+            flex-wrap: wrap; /* Allow wrapping on small screens */
+            gap: 20px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            border: 1px solid #eee;
+        }
+
+        .result-item.best-match {
+            background-color: #e7f3ff; /* Light blue for best match */
+            border-left: 5px solid #1877f2; /* Highlight best match */
+            padding-left: 10px;
+        }
+
+        .result-media {
+            flex: 1 1 200px; /* Flexible media container */
+            min-width: 180px;
+            text-align: center;
+        }
+
+        .result-media img,
+        .result-media video {
+            max-width: 100%;
+            height: auto; /* Maintain aspect ratio */
+            max-height: 200px; /* Limit media height */
+            border-radius: 4px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            background-color: #eee; /* Background for loading media */
+        }
+         .result-media video {
+            display: block; /* Ensure video takes block space */
+            margin: 0 auto 10px auto;
+         }
+
+        .result-details {
+            flex: 2 1 300px; /* Allow details to take more space */
+        }
+
+        .result-details h3 {
+            margin-top: 0;
+            margin-bottom: 8px;
+            font-size: 1.1em;
+            color: #1c1e21;
+        }
+        .result-details p {
+            margin-bottom: 5px;
+            font-size: 0.95em;
+            color: #333;
+        }
+        .result-details strong {
+           color: #1c1e21;
+        }
+
+        .similarity-bar {
+            width: 100%;
+            background-color: #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+            height: 10px;
+            margin-top: 5px;
+        }
+        .similarity-fill {
+            height: 100%;
+            background-color: #4caf50; /* Green */
+            border-radius: 4px;
+            transition: width 0.5s ease-out;
+        }
+        .similarity-fill.medium { background-color: #ffc107; } /* Yellow */
+        .similarity-fill.low { background-color: #ff9800; } /* Orange */
+        .similarity-fill.very-low { background-color: #f44336; } /* Red */
+
+
+        .result-links a {
+            display: inline-block;
+            margin-right: 10px;
+            margin-top: 8px;
+            text-decoration: none;
+            color: #1877f2;
+            font-size: 0.9em;
+        }
+        .result-links a:hover {
+            text-decoration: underline;
+        }
+
+        #no-match {
+            text-align: center;
+            padding: 20px;
+            background-color: #fff3cd; /* Warning yellow */
+            border: 1px solid #ffeeba;
+            color: #856404;
+            border-radius: 4px;
+        }
+
+        /* --- Utility Classes --- */
+        .hidden {
+            display: none;
+        }
+
+        /* --- Footer --- */
+        footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 1px solid #e0e0e0;
+            font-size: 0.9em;
+            color: #606770;
+        }
+        footer a {
+            color: #1877f2;
+            text-decoration: none;
+        }
+        footer a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Sauce Finder <span class="beta">Prototype</span></h1>
+        <p>Upload an anime screenshot (or drop it!) to find the source.</p>
+
+        <div class="input-area" id="dropZone">
+            <label for="imageFile" class="file-label">
+                Choose or Drop Image Here
+            </label>
+            <input type="file" id="imageFile" accept="image/jpeg, image/png, image/gif, image/webp">
+            <img id="preview" src="#" alt="Image Preview" class="hidden"/>
+        </div>
+
+        <div id="loading" class="hidden">
+            <div class="spinner"></div>
+            <p>Searching for the sauce...</p>
+        </div>
+
+        <div id="error" class="error-message hidden"></div>
+
+        <div id="results-area" class="hidden">
+            <h2>Results</h2>
+            <div id="results-content">
+                <!-- Results will be injected here -->
+            </div>
+            <div id="no-match" class="hidden">
+                <p>Sorry, no highly confident match found. Maybe try a different frame or a clearer image?</p>
+            </div>
+        </div>
+
+    </div>
+
+    <footer>
+        <p>Powered by the <a href="https://soruly.github.io/trace.moe-api/#/" target="_blank" rel="noopener noreferrer">trace.moe API</a>. Please respect their usage limits.</p>
+        <p>This is a basic prototype. Not affiliated with trace.moe.</p>
+    </footer>
+
+    <script>
+        // --- DOM Elements ---
+        const imageFile = document.getElementById('imageFile');
+        const preview = document.getElementById('preview');
+        const loading = document.getElementById('loading');
+        const errorDiv = document.getElementById('error');
+        const resultsArea = document.getElementById('results-area');
+        const resultsContent = document.getElementById('results-content');
+        const noMatchDiv = document.getElementById('no-match');
+        const dropZone = document.getElementById('dropZone');
+
+        // --- API Endpoint ---
+        const TRACE_MOE_API = 'https://api.trace.moe/search?cutBorders&anilistInfo';
+
+        // --- Event Listeners ---
+
+        // File Input Change
+        imageFile.addEventListener('change', handleFileSelect);
+
+        // Drag and Drop Events
+        dropZone.addEventListener('dragover', (event) => {
+            event.stopPropagation();
+            event.preventDefault();
+            // Style the drop zone
+            event.dataTransfer.dropEffect = 'copy';
+            dropZone.classList.add('dragover');
+        });
+
+        dropZone.addEventListener('dragleave', (event) => {
+            event.stopPropagation();
+            event.preventDefault();
+            dropZone.classList.remove('dragover');
+        });
+
+        dropZone.addEventListener('drop', (event) => {
+            event.stopPropagation();
+            event.preventDefault();
+            dropZone.classList.remove('dragover');
+            const files = event.dataTransfer.files;
+            if (files.length > 0) {
+                handleFileSelect({ target: { files: files } }); // Simulate file input event
+            }
+        });
+
+        // --- Core Functions ---
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) {
+                return; // No file selected/dropped
+            }
+
+            // Basic validation (can be more robust)
+            if (!file.type.startsWith('image/')) {
+                showError('Please select an image file (JPG, PNG, GIF, WEBP).');
+                resetInput();
+                return;
+            }
+
+            // Show preview
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                preview.src = e.target.result;
+                preview.classList.remove('hidden');
+                // Clear previous results and errors
+                resetResults();
+                // Start the search
+                searchImage(file);
+            }
+            reader.readAsDataURL(file);
+        }
+
+        async function searchImage(file) {
+            showLoading(true);
+
+            const formData = new FormData();
+            formData.append('image', file);
+
+            try {
+                const response = await fetch(TRACE_MOE_API, {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                if (response.status === 429) {
+                     throw new Error('Rate limit exceeded. Please wait a bit and try again.');
+                }
+                 if (response.status === 400) {
+                     const errorData = await response.json();
+                     throw new Error(`API Error: ${errorData.error || 'Invalid image data.'}`);
+                }
+                if (!response.ok) {
+                     throw new Error(`API Error: Status ${response.status}. Please try again later.`);
+                }
+
+                const data = await response.json();
+
+                if (data.error) {
+                    throw new Error(`API Error: ${data.error}`);
+                }
+
+                displayResults(data.result);
+
+            } catch (err) {
+                console.error("Search Error:", err);
+                showError(err.message || 'An unexpected error occurred during the search.');
+                resetResults(); // Clear potential partial results display
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // --- UI Update Functions ---
+
+        function displayResults(results) {
+            resultsContent.innerHTML = ''; // Clear previous results
+            noMatchDiv.classList.add('hidden'); // Hide no match message initially
+
+            if (!results || results.length === 0) {
+                noMatchDiv.classList.remove('hidden');
+                resultsArea.classList.add('hidden'); // Hide the results section title if no results
+                return;
+            }
+
+            // Sort results by similarity (highest first) - API usually does this, but good practice
+            results.sort((a, b) => b.similarity - a.similarity);
+
+            const highConfidenceThreshold = 0.87; // Minimum similarity to consider a good match
+
+            let foundMatch = false;
+
+            results.forEach((result, index) => {
+                 // Only display reasonably confident matches, or always show the top one
+                if (result.similarity >= highConfidenceThreshold || index === 0) {
+                    foundMatch = true;
+                    const resultElement = createResultElement(result, index === 0);
+                    resultsContent.appendChild(resultElement);
+                }
+            });
+
+             if (!foundMatch) {
+                 noMatchDiv.classList.remove('hidden'); // Show no match message if only low confidence results exist
+                 resultsArea.classList.add('hidden');
+             } else {
+                 resultsArea.classList.remove('hidden'); // Show results area
+             }
+        }
+
+        function createResultElement(result, isBestMatch) {
+            const div = document.createElement('div');
+            div.className = 'result-item' + (isBestMatch ? ' best-match' : '');
+
+            const similarity = (result.similarity * 100).toFixed(2);
+            const title = result.anilist?.title?.romaji || result.anilist?.title?.english || result.filename.replace(/\.[^/.]+$/, ""); // Fallback to filename
+            const episode = result.episode || 'Unknown';
+            const timeSeconds = result.from;
+            const timestamp = new Date(timeSeconds * 1000).toISOString().substr(11, 8); // HH:MM:SS format
+
+            // Similarity bar color
+            let similarityClass = 'very-low';
+            if (similarity > 95) similarityClass = 'high'; // Technically covered by 'green' but allows more classes
+            else if (similarity > 90) similarityClass = ''; // Default green
+            else if (similarity > 85) similarityClass = 'medium';
+            else if (similarity > 80) similarityClass = 'low';
+
+
+            div.innerHTML = `
+                <div class="result-media">
+                    <img src="${result.image}" alt="Matched Frame Thumbnail" loading="lazy">
+                    <video controls preload="none" src="${result.video}&size=m&mute=1" type="video/mp4"></video>
+                     <small>Matched Scene Preview</small>
+                </div>
+                <div class="result-details">
+                    <h3>${title} ${isBestMatch ? '<span style="font-size:0.8em; color:#555;">(Best Match)</span>': ''}</h3>
+                    <p><strong>Episode:</strong> ${episode}</p>
+                    <p><strong>Timestamp:</strong> ~ ${timestamp}</p>
+                    <p><strong>Similarity:</strong> ${similarity}%</p>
+                    <div class="similarity-bar">
+                        <div class="similarity-fill ${similarityClass}" style="width: ${similarity}%;"></div>
+                    </div>
+                     <div class="result-links">
+                         ${result.anilist ? `<a href="https://anilist.co/anime/${result.anilist.id}" target="_blank" rel="noopener noreferrer">View on AniList</a>` : ''}
+                         <!-- Add MAL link later if needed -->
+                     </div>
+                </div>
+            `;
+            return div;
+        }
+
+        function showLoading(isLoading) {
+            if (isLoading) {
+                loading.classList.remove('hidden');
+                errorDiv.classList.add('hidden'); // Hide error when starting loading
+                resultsArea.classList.add('hidden'); // Hide results when starting loading
+            } else {
+                loading.classList.add('hidden');
+            }
+        }
+
+        function showError(message) {
+            errorDiv.textContent = message;
+            errorDiv.classList.remove('hidden');
+            resultsArea.classList.add('hidden'); // Hide results on error
+            noMatchDiv.classList.add('hidden'); // Hide no-match message on error
+        }
+
+        function resetResults() {
+            resultsContent.innerHTML = '';
+            resultsArea.classList.add('hidden');
+            noMatchDiv.classList.add('hidden');
+            errorDiv.classList.add('hidden');
+        }
+
+        function resetInput() {
+             imageFile.value = ''; // Clear the file input
+             preview.src = '#';
+             preview.classList.add('hidden');
+        }
+
+    </script>
+</body>
+</html>
